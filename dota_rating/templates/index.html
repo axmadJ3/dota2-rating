@@ -1,0 +1,174 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Turbo Rating</title>
+  <link rel="stylesheet" href= {% static "style.css" %}/>
+</head>
+
+<body>
+  <header>
+    <div class="header-left">
+      <h1>Turbo Rating</h1>
+    </div>
+    <div class="header-right">
+      <button id="refresh-rating">Refresh rating</button>
+      {% if request.user.is_authenticated %}
+        <a href="{% url "auth:logout" %}">
+          <button id="refresh-rating">Sign Out</button>
+        </a>
+      {% else %}
+      <a href="{% url "social:begin" "steam" %}">
+        <button id="refresh-rating">Auth via Steam</button>
+      </a>
+      {% endif %}
+      <div class="user-info">
+        {% if request.user.is_authenticated %}
+          <span id="user-nickname">{{ request.user.personaname }}</span> |
+          <span id="user-rating">1520</span>
+        {% else %}
+          <span id="user-nickname">Guest</span> |
+          <span id="user-rating">1</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" data-tab="rating">Table Rating</button>
+    <button data-tab="stats">Your Stat</button>
+  </nav>
+
+  <!-- Table Rating Tab -->
+  <div class="tab-content" id="rating-tab">
+    <table>
+      <thead>
+        <tr>
+          <th>Position</th>
+          <th>Nickname</th>
+          <th>Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+          <!-- Top 100 entries dynamically loaded -->
+          <tr><td>1</td><td>TopPlayer</td><td>2500</td></tr>
+          <!-- ... до 100 -->
+          <tr class="more-row"><td colspan="3">&bull;&bull;&bull;</td></tr>
+          <!-- Текущий пользователь, если нет в топ 100 -->
+          <tr><td id="user-pos">345</td><td id="user-nickname-2">{{ request.user.personaname }}</td><td id="user-rating-2">1520</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Your Stat Tab -->
+  <div class="tab-content" id="stats-tab" style="display:none;">
+    <table id="stats-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Hero</th>
+          <th>Result</th>
+          <th>K</th>
+          <th>D</th>
+          <th>A</th>
+          <th>Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Данные игр динамически добавляются -->
+      </tbody>
+    </table>
+    <div id="loading" class="more-row">Загрузка...</div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('nav button');
+    const ratingTab = document.getElementById('rating-tab');
+    const statsTab = document.getElementById('stats-tab');
+    const refreshBtn = document.getElementById('refresh-rating');
+    const statsBody = document.querySelector('#stats-table tbody');
+    const loadingIndicator = document.getElementById('loading');
+    const userRatingSpan = document.getElementById('user-rating');
+    const userRatingSpan2 = document.getElementById('user-rating-2');
+    let offset = 0;
+    const limit = 20;
+    let loading = false;
+
+    // Переключение вкладок
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabs.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ratingTab.style.display = btn.dataset.tab === 'rating' ? 'block' : 'none';
+        statsTab.style.display = btn.dataset.tab === 'stats' ? 'block' : 'none';
+      });
+    });
+
+    // Загрузка статистики игр
+    async function loadStats() {
+      if (loading) return;
+      loading = true;
+      loadingIndicator.style.display = 'block';
+      try {
+        const resp = await fetch(`/api/user/stats?offset=${offset}&limit=${limit}`);
+        const games = await resp.json();
+        games.forEach(game => {
+          const row = document.createElement('tr');
+          row.innerHTML = ` 
+            <td>${new Date(game.time).toLocaleString()}</td>
+            <td>${game.hero}</td>
+            <td>${game.result}</td>
+            <td>${game.kills}</td>
+            <td>${game.deaths}</td>
+            <td>${game.assists}</td>
+            <td>${game.rating}</td>
+          `;
+          statsBody.appendChild(row);
+        });
+        offset += games.length;
+        if (games.length < limit) {
+          loadingIndicator.textContent = 'Больше нет игр';
+          statsTab.removeEventListener('scroll', handleScroll);
+        }
+      } catch (e) {
+        console.error('Error loading stats', e);
+      } finally {
+        loading = false;
+        loadingIndicator.style.display = 'none';
+      }
+    }
+
+    // Обработчик скролла для бесконечной подгрузки
+    function handleScroll() {
+      const { scrollTop, scrollHeight, clientHeight } = statsTab;
+      if (scrollTop + clientHeight >= scrollHeight - 50) loadStats();
+    }
+    statsTab.addEventListener('scroll', handleScroll);
+
+    // Обновление рейтинга и перезагрузка списка игр
+    refreshBtn.addEventListener('click', async () => {
+      offset = 0;
+      statsBody.innerHTML = '';
+      statsTab.addEventListener('scroll', handleScroll);
+      loadingIndicator.textContent = 'Загрузка...';
+      // Обновить текущий рейтинг
+      try {
+        const resp = await fetch('/api/user/rating');
+        const data = await resp.json();
+        userRatingSpan.textContent = data.rating;
+        userRatingSpan2.textContent = data.rating;
+      } catch (e) {
+        console.error('Error fetching user rating', e);
+      }
+      // Загрузить первые записи статистики
+      await loadStats();
+    });
+
+    // Инициализация: первая загрузка
+    loadStats();
+  </script>
+</body>
+</html>
