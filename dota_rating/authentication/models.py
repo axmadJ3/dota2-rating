@@ -1,17 +1,25 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+from django.db.models import Sum, FloatField
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
-class SteamUserManager(BaseUserManager):
+class SteamUserQuerySet(models.QuerySet):
+    def annotate_total_rating(self):
+        return self.annotate(
+            total_rating=Coalesce(
+                Sum('matches__rating_change', output_field=FloatField()),
+                0.0
+            )
+        )
+
+
+class SteamUserManager(BaseUserManager.from_queryset(SteamUserQuerySet)):
     def _create_user(self, steamid, password, **extra_fields):
-        """
-        Creates and saves a User with the given steamid and password.
-        """
         try:
-            # python social auth provides an empty email param, which cannot be used here
             del extra_fields['email']
         except KeyError:
             pass
@@ -31,10 +39,8 @@ class SteamUserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
+        if not extra_fields['is_staff'] or not extra_fields['is_superuser']:
+            raise ValueError('Superuser must have is_staff=True and is_superuser=True')
 
         return self._create_user(steamid, password, **extra_fields)
 

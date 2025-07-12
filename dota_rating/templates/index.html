@@ -10,6 +10,7 @@
 </head>
 
 <body>
+  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
   <header>
     <div class="header-left">
       <h1>Turbo Rating</h1>
@@ -18,17 +19,17 @@
       <button id="refresh-rating">Refresh rating</button>
       {% if request.user.is_authenticated %}
         <a href="{% url "auth:logout" %}">
-          <button id="refresh-rating">Sign Out</button>
+          <button id="signout-steam">Sign Out</button>
         </a>
       {% else %}
       <a href="{% url "social:begin" "steam" %}">
-        <button id="refresh-rating">Auth via Steam</button>
+        <button id="auth-steam">Auth via Steam</button>
       </a>
       {% endif %}
       <div class="user-info">
         {% if request.user.is_authenticated %}
           <span id="user-nickname">{{ request.user.personaname }}</span> |
-          <span id="user-rating">1520</span>
+          <span id="user-rating">{{ user_total_rating }}</span>
         {% else %}
           <span id="user-nickname">Guest</span> |
           <span id="user-rating">1</span>
@@ -52,16 +53,12 @@
           <th>Rating</th>
         </tr>
       </thead>
-      <tbody>
-          <!-- Top 100 entries dynamically loaded -->
-          <tr><td>1</td><td>TopPlayer</td><td>2500</td></tr>
-          <!-- ... до 100 -->
-          <tr class="more-row"><td colspan="3">&bull;&bull;&bull;</td></tr>
-          <!-- Текущий пользователь, если нет в топ 100 -->
-          <tr><td id="user-pos">345</td><td id="user-nickname-2">{{ request.user.personaname }}</td><td id="user-rating-2">1520</td></tr>
+      <tbody id="leaderboard-body">
+        <!-- динамически загружается -->
       </tbody>
     </table>
   </div>
+
 
   <!-- Your Stat Tab -->
   <div class="tab-content" id="stats-tab" style="display:none;">
@@ -78,46 +75,52 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Данные игр динамически добавляются -->
+        <!-- данные матчей -->
       </tbody>
     </table>
     <div id="loading" class="more-row">Загрузка...</div>
   </div>
+
 
   <script>
     const tabs = document.querySelectorAll('nav button');
     const ratingTab = document.getElementById('rating-tab');
     const statsTab = document.getElementById('stats-tab');
     const refreshBtn = document.getElementById('refresh-rating');
+
+    const leaderboardBody = document.getElementById('leaderboard-body');
     const statsBody = document.querySelector('#stats-table tbody');
     const loadingIndicator = document.getElementById('loading');
+
     const userRatingSpan = document.getElementById('user-rating');
     const userRatingSpan2 = document.getElementById('user-rating-2');
+
     let offset = 0;
-    const limit = 20;
+    let limit = 20;
     let loading = false;
 
-    // Переключение вкладок
     tabs.forEach(btn => {
       btn.addEventListener('click', () => {
         tabs.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         ratingTab.style.display = btn.dataset.tab === 'rating' ? 'block' : 'none';
         statsTab.style.display = btn.dataset.tab === 'stats' ? 'block' : 'none';
+        if (btn.dataset.tab === 'stats' && statsBody.childElementCount === 0) {
+          loadStats();
+        }
       });
     });
 
-    // Загрузка статистики игр
     async function loadStats() {
       if (loading) return;
       loading = true;
       loadingIndicator.style.display = 'block';
       try {
-        const resp = await fetch(`/api/user/stats?offset=${offset}&limit=${limit}`);
+        const resp = await fetch(`/api/user/stats?steam_id=${CURRENT_USER_STEAM_ID}&offset=${offset}&limit=${limit}`);
         const games = await resp.json();
         games.forEach(game => {
           const row = document.createElement('tr');
-          row.innerHTML = ` 
+          row.innerHTML = `
             <td>${new Date(game.time).toLocaleString()}</td>
             <td>${game.hero}</td>
             <td>${game.result}</td>
@@ -134,41 +137,63 @@
           statsTab.removeEventListener('scroll', handleScroll);
         }
       } catch (e) {
-        console.error('Error loading stats', e);
+        console.error('Ошибка загрузки матчей', e);
       } finally {
         loading = false;
         loadingIndicator.style.display = 'none';
       }
     }
 
-    // Обработчик скролла для бесконечной подгрузки
     function handleScroll() {
       const { scrollTop, scrollHeight, clientHeight } = statsTab;
-      if (scrollTop + clientHeight >= scrollHeight - 50) loadStats();
+      if (scrollTop + clientHeight >= scrollHeight - 50) {
+        loadStats();
+      }
     }
     statsTab.addEventListener('scroll', handleScroll);
 
-    // Обновление рейтинга и перезагрузка списка игр
-    refreshBtn.addEventListener('click', async () => {
+    refreshBtn?.addEventListener('click', async () => {
       offset = 0;
       statsBody.innerHTML = '';
       statsTab.addEventListener('scroll', handleScroll);
       loadingIndicator.textContent = 'Загрузка...';
-      // Обновить текущий рейтинг
       try {
-        const resp = await fetch('/api/user/rating');
+        const csrftoken = document.getElementById('csrf-token').value;
+        await fetch('/api/player/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken  // 🔐 важно
+          },
+          body: JSON.stringify({ steam_id: CURRENT_USER_STEAM_ID })
+        });
+        const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
         const data = await resp.json();
         userRatingSpan.textContent = data.rating;
         userRatingSpan2.textContent = data.rating;
       } catch (e) {
-        console.error('Error fetching user rating', e);
+        console.error('Ошибка обновления рейтинга', e);
       }
-      // Загрузить первые записи статистики
       await loadStats();
     });
 
-    // Инициализация: первая загрузка
-    loadStats();
+    async function loadLeaderboard() {
+      const resp = await fetch('/api/leaderboard');
+      const players = await resp.json();
+      leaderboardBody.innerHTML = '';
+      players.forEach((p, i) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${i + 1}</td><td>${p.personaname}</td><td>${p.rating}</td>`;
+        leaderboardBody.appendChild(tr);
+      });
+    }
+
+    // Инициализация
+    loadLeaderboard();
+  </script>
+
+  <script>
+    const CURRENT_USER_STEAM_ID = "{{ request.user.steamid }}";
   </script>
 </body>
 </html>
