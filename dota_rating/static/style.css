@@ -108,3 +108,23 @@ tr:hover {
     font-size: 18px;
     color: #777;
 }
+#notification {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #4caf50;
+  color: white;
+  padding: 12px 24px;
+  border-radius: 0 0 6px 6px;
+  font-size: 14px;
+  z-index: 1000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s ease;
+}
+
+tr.user-position {
+  background-color: #2f2f2f;
+  font-weight: bold;
+  border-top: 2px solid #444;
+}
