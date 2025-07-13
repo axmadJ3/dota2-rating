@@ -13,3 +13,4 @@ class Match(models.Model):
     win = models.BooleanField()
     rating_change = models.FloatField()
     match_time = models.DateTimeField()
+    duration = models.IntegerField(help_text="Duration in seconds")

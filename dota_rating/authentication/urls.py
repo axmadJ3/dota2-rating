@@ -1,7 +1,7 @@
 from django.urls import path
 from django.contrib.auth.decorators import login_required
 
-from .views import IndexView, LogoutView
+from .views import LogoutView
 from rating.views import rating_dashboard_view
 
 app_name = 'auth'

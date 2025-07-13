@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game Turbo Rating</title>
-  <link rel="stylesheet" href= {% static "style.css" %}/>
+  <link rel="stylesheet" href="{% static 'style.css' %}"/>
 </head>
 
 <body>
@@ -16,15 +16,15 @@
       <h1>Turbo Rating</h1>
     </div>
     <div class="header-right">
-      <button id="refresh-rating">Refresh rating</button>
       {% if request.user.is_authenticated %}
+        <button id="refresh-rating">Refresh rating</button>
         <a href="{% url "auth:logout" %}">
           <button id="signout-steam">Sign Out</button>
         </a>
       {% else %}
-      <a href="{% url "social:begin" "steam" %}">
-        <button id="auth-steam">Auth via Steam</button>
-      </a>
+        <a href="{% url "social:begin" "steam" %}">
+          <button id="auth-steam">Auth via Steam</button>
+        </a>
       {% endif %}
       <div class="user-info">
         {% if request.user.is_authenticated %}
@@ -40,7 +40,9 @@
 
   <nav>
     <button class="active" data-tab="rating">Table Rating</button>
-    <button data-tab="stats">Your Stat</button>
+    {% if request.user.is_authenticated %}
+      <button data-tab="stats">Your Stat</button>
+    {% endif %}
   </nav>
 
   <!-- Table Rating Tab -->
@@ -59,57 +61,70 @@
     </table>
   </div>
 
-
   <!-- Your Stat Tab -->
-  <div class="tab-content" id="stats-tab" style="display:none;">
-    <table id="stats-table">
-      <thead>
-        <tr>
-          <th>Time</th>
-          <th>Hero</th>
-          <th>Result</th>
-          <th>K</th>
-          <th>D</th>
-          <th>A</th>
-          <th>Rating</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- данные матчей -->
-      </tbody>
-    </table>
-    <div id="loading" class="more-row">Загрузка...</div>
-  </div>
-
+  {% if request.user.is_authenticated %}
+    <div class="tab-content" id="stats-tab" style="display:none;">
+      <table id="stats-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Duration</th>
+            <th>Hero</th>
+            <th>Result</th>
+            <th>K</th>
+            <th>D</th>
+            <th>A</th>
+            <th>Rating</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="loading" class="more-row">Загрузка...</div>
+    </div>
+  {% else %}
+    <div class="tab-content" style="text-align: center;">
+      <h2 style="margin-top: 40px;">Авторизуйтесь через Steam, чтобы посмотреть свою статистику</h2>
+      <a href="{% url "social:begin" "steam" %}">
+        <button id="auth-steam" style="margin-top: 20px;">Auth via Steam</button>
+      </a>
+    </div>
+  {% endif %}
 
   <script>
     const tabs = document.querySelectorAll('nav button');
     const ratingTab = document.getElementById('rating-tab');
     const statsTab = document.getElementById('stats-tab');
     const refreshBtn = document.getElementById('refresh-rating');
-
     const leaderboardBody = document.getElementById('leaderboard-body');
     const statsBody = document.querySelector('#stats-table tbody');
     const loadingIndicator = document.getElementById('loading');
-
     const userRatingSpan = document.getElementById('user-rating');
-    const userRatingSpan2 = document.getElementById('user-rating-2');
 
     let offset = 0;
     let limit = 20;
     let loading = false;
+
+    {% if request.user.is_authenticated %}
+    const CURRENT_USER_STEAM_ID = "{{ request.user.steamid }}";
+    {% endif %}
 
     tabs.forEach(btn => {
       btn.addEventListener('click', () => {
         tabs.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         ratingTab.style.display = btn.dataset.tab === 'rating' ? 'block' : 'none';
-        statsTab.style.display = btn.dataset.tab === 'stats' ? 'block' : 'none';
-        if (btn.dataset.tab === 'stats' && statsBody.childElementCount === 0) {
+        if (statsTab) statsTab.style.display = btn.dataset.tab === 'stats' ? 'block' : 'none';
+        if (btn.dataset.tab === 'stats' && statsBody && statsBody.childElementCount === 0) {
           loadStats();
         }
       });
     });
+
+    function formatDuration(seconds) {
+      const min = Math.floor(seconds / 60);
+      const sec = seconds % 60;
+      return `${min}:${sec.toString().padStart(2, '0')}`;
+    }
 
     async function loadStats() {
       if (loading) return;
@@ -122,6 +137,7 @@
           const row = document.createElement('tr');
           row.innerHTML = `
             <td>${new Date(game.time).toLocaleString()}</td>
+            <td>${formatDuration(game.duration)}</td>
             <td>${game.hero}</td>
             <td>${game.result}</td>
             <td>${game.kills}</td>
@@ -150,32 +166,42 @@
         loadStats();
       }
     }
-    statsTab.addEventListener('scroll', handleScroll);
 
-    refreshBtn?.addEventListener('click', async () => {
-      offset = 0;
-      statsBody.innerHTML = '';
+    if (statsTab) {
       statsTab.addEventListener('scroll', handleScroll);
-      loadingIndicator.textContent = 'Загрузка...';
-      try {
-        const csrftoken = document.getElementById('csrf-token').value;
-        await fetch('/api/player/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken  // 🔐 важно
-          },
-          body: JSON.stringify({ steam_id: CURRENT_USER_STEAM_ID })
-        });
-        const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
-        const data = await resp.json();
-        userRatingSpan.textContent = data.rating;
-        userRatingSpan2.textContent = data.rating;
-      } catch (e) {
-        console.error('Ошибка обновления рейтинга', e);
-      }
-      await loadStats();
-    });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async () => {
+        offset = 0;
+        statsBody.innerHTML = '';
+        statsTab.addEventListener('scroll', handleScroll);
+        loadingIndicator.textContent = 'Загрузка...';
+        try {
+          const csrftoken = document.getElementById('csrf-token').value;
+          await fetch('/api/player/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ steam_id: CURRENT_USER_STEAM_ID })
+          });
+
+          const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
+          const data = await resp.json();
+          userRatingSpan.textContent = data.rating;
+
+          await loadLeaderboard();
+
+        } catch (e) {
+          console.error('Ошибка обновления рейтинга', e);
+        }
+
+        await loadStats();
+      });
+    }
+
 
     async function loadLeaderboard() {
       const resp = await fetch('/api/leaderboard');
@@ -190,10 +216,6 @@
 
     // Инициализация
     loadLeaderboard();
-  </script>
-
-  <script>
-    const CURRENT_USER_STEAM_ID = "{{ request.user.steamid }}";
   </script>
 </body>
 </html>

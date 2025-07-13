@@ -1,12 +1,10 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import render
-from django.db.models import Sum, FloatField
-from django.db.models.functions import Coalesce
 
 from authentication.models import SteamUser
 from .models import Match
-from .sync import sync_matches_for_player
+from .services import sync_matches_for_player
 from .serializers import SteamUserSerializer
 
 
@@ -16,14 +14,16 @@ def rating_dashboard_view(request):
     if request.user.is_authenticated:
         user_with_rating = (
             SteamUser.objects
-            .annotate(total_rating=Coalesce(Sum('matches__rating_change', output_field=FloatField()), 0.0))
+            .annotate_total_rating()
             .get(pk=request.user.pk)
         )
         user_total_rating = round(user_with_rating.total_rating, 2)
 
-    return render(request, 'index.html', {
-        'user_total_rating': user_total_rating,
-    })
+        return render(request, 'index.html', {
+            'user_total_rating': user_total_rating,
+        })
+    else:
+        return render(request, 'index.html', )
 
 
 @api_view(['GET'])
@@ -72,12 +72,13 @@ def user_stats(request):
     return Response([
         {
             "time": m.match_time,
+            "duration": m.duration,
             "hero": m.hero_id,
             "result": "Win" if m.win else "Lose",
             "kills": m.kills,
             "deaths": m.deaths,
             "assists": m.assists,
-            "rating": m.rating_change
+            "rating": m.rating_change,
         } for m in matches
     ])
 
