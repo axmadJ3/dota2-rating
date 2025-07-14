@@ -5,6 +5,7 @@ from django.shortcuts import render
 from authentication.models import SteamUser
 from .models import Match
 from .services import sync_matches_for_player
+from .utils import hero_name
 from .serializers import SteamUserSerializer
 
 
@@ -73,7 +74,7 @@ def user_stats(request):
         {
             "time": m.match_time,
             "duration": m.duration,
-            "hero": m.hero_id,
+            "hero": hero_name(m.hero_id),
             "result": "Win" if m.win else "Lose",
             "kills": m.kills,
             "deaths": m.deaths,

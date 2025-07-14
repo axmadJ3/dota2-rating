@@ -1,0 +1,13 @@
+# upstream for uWSGI
+upstream uwsgi_app {
+    server unix:/code/dota_rating/uwsgi_app.sock;
+}
+
+server {
+    listen 80;
+    server_name 13.62.23.9;
+
+    location /static/ {
+        alias /code/dota_rating/staticfiles/;
+    }
+}
