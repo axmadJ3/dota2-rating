@@ -33,16 +33,15 @@
           <span id="user-rating">{{ user_total_rating }}</span>
         {% else %}
           <span id="user-nickname">Guest</span> |
-          <span id="user-rating">1</span>
         {% endif %}
       </div>
     </div>
   </header>
 
   <nav>
-    <button class="active" data-tab="rating">Table Rating</button>
+    <button class="active" data-tab="rating">Top Rating</button>
     {% if request.user.is_authenticated %}
-      <button data-tab="stats">Your Stat</button>
+      <button data-tab="stats">Your History</button>
     {% endif %}
   </nav>
 

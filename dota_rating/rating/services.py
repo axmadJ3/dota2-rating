@@ -4,7 +4,7 @@ from .models import Match
 from .utils import calculate_rating_change
 
 def sync_matches_for_player(player):
-    url = f"https://api.opendota.com/api/players/{player.steamid}/matches?game_mode=23"
+    url = f"https://api.opendota.com/api/players/{player.steamid}/matches?game_mode=23&significant=0"
     response = requests.get(url)
     if not response.ok:
         return
