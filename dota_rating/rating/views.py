@@ -29,7 +29,10 @@ def rating_dashboard_view(request):
 
 @api_view(['GET'])
 def leaderboard(request):
-    users = SteamUser.objects.annotate_total_rating().order_by('-total_rating')[:100]
+    offset = int(request.GET.get('offset', 0))
+    limit = int(request.GET.get('limit', 50))
+
+    users = SteamUser.objects.annotate_total_rating().order_by('-total_rating')[offset:offset + limit]
     return Response(SteamUserSerializer(users, many=True).data)
 
 

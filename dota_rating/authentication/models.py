@@ -1,7 +1,7 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
-from django.db.models import Sum, FloatField
+from django.db.models import Sum, IntegerField
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -11,8 +11,8 @@ class SteamUserQuerySet(models.QuerySet):
     def annotate_total_rating(self):
         return self.annotate(
             total_rating=Coalesce(
-                Sum('matches__rating_change', output_field=FloatField()),
-                0.0
+                Sum('matches__rating_change', output_field=IntegerField()),
+                0
             )
         )
 

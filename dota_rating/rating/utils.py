@@ -1,5 +1,5 @@
 def calculate_rating_change(win, kills, deaths, assists):
-    return (5 if win else -5) + kills - deaths + assists * 0.25
+    return (20 if win else -20) + kills * 4 - deaths * 4 + assists * 1
 
 
 def hero_name(hero_id):

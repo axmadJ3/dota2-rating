@@ -1,5 +1,6 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
+from django.utils import timezone
 from .models import Match
 from .utils import calculate_rating_change
 
@@ -10,8 +11,16 @@ def sync_matches_for_player(player):
         return
 
     matches = response.json()
+    cutoff_date = timezone.now() - timedelta(days=180)
+
+    Match.objects.filter(player=player, match_time__lt=cutoff_date).delete()
 
     for m in matches:
+        match_time = datetime.fromtimestamp(m['start_time'], tz=timezone.utc)
+
+        if match_time < cutoff_date:
+            continue
+
         if Match.objects.filter(match_id=m['match_id']).exists():
             continue
 
@@ -27,6 +36,6 @@ def sync_matches_for_player(player):
             assists=m['assists'],
             win=win,
             rating_change=rating_change,
-            match_time=datetime.fromtimestamp(m['start_time']),
-            duration = m['duration'],
+            match_time=match_time,
+            duration=m['duration'],
         )
