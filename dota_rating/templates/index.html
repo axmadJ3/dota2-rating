@@ -40,7 +40,6 @@
         {% else %}
           <span id="user-nickname">Guest</span>
         {% endif %}
-        <img src="{% static 'logo.png' %}" alt="Logo" class="header-logo">
       </div>
     </div>
   </header>
@@ -51,6 +50,9 @@
   </nav>
 
   <div class="tab-content" id="rating-tab">
+    <p style="text-align: center; color: #666; font-size: 1em; margin-top: 10px;">
+      🔹 The rating is calculated only for Turbo matches over the <strong>last 180 days</strong>.<br>
+    </p>
     <table>
       <thead>
         <tr>
@@ -69,6 +71,9 @@
 
   <div class="tab-content" id="stats-tab" style="display:none;">
     {% if request.user.is_authenticated %}
+    <p style="text-align: center; color: #666; font-size: 1em; margin-top: 10px;">
+      🔹 Match histories are available only for the <strong>last 180 days</strong> for turbo mode.<br>
+    </p>
       <table id="stats-table">
         <thead>
           <tr>

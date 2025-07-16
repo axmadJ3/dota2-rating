@@ -25,6 +25,7 @@ services:
     env_file:
       - .env
     environment:
+      - STEAM_API_KEY=${STEAM_API_KEY}
       - DJANGO_SETTINGS_MODULE=dota_rating.settings.prod
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
