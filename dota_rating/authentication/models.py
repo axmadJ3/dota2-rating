@@ -49,13 +49,13 @@ class SteamUser(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'steamid'
 
     steamid = models.CharField(max_length=17, unique=True)
+    steamid32 = models.BigIntegerField(null=True, blank=True)  # 👈 Новое поле
+
     personaname = models.CharField(max_length=255)
     profileurl = models.CharField(max_length=300)
     avatar = models.CharField(max_length=255)
     avatarmedium = models.CharField(max_length=255)
     avatarfull = models.CharField(max_length=255)
-
-    # Add the other fields that can be retrieved from the Web-API if required
 
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
     is_active = models.BooleanField(default=True)
@@ -68,3 +68,11 @@ class SteamUser(AbstractBaseUser, PermissionsMixin):
 
     def get_full_name(self):
         return self.personaname
+
+    def save(self, *args, **kwargs):
+        if self.steamid:
+            try:
+                self.steamid32 = int(self.steamid) - 76561197960265728
+            except (ValueError, TypeError):
+                self.steamid32 = None
+        super().save(*args, **kwargs)

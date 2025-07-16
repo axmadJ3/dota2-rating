@@ -50,7 +50,6 @@
     <button data-tab="stats">Your History</button>
   </nav>
 
-  <!-- Table Rating Tab -->
   <div class="tab-content" id="rating-tab">
     <table>
       <thead>
@@ -60,9 +59,7 @@
           <th>Rating</th>
         </tr>
       </thead>
-      <tbody id="leaderboard-body">
-        <!-- динамически загружается -->
-      </tbody>
+      <tbody id="leaderboard-body"></tbody>
     </table>
 
     <div style="text-align: center; margin: 20px 0;">
@@ -70,7 +67,6 @@
     </div>
   </div>
 
-  <!-- Your Stat Tab -->
   <div class="tab-content" id="stats-tab" style="display:none;">
     {% if request.user.is_authenticated %}
       <table id="stats-table">
@@ -92,13 +88,9 @@
     {% else %}
       <div style="text-align: center; margin-top: 40px;">
         <h2>Please sign in via Steam to view your match history</h2>
-        <a href="{% url "social:begin" "steam" %}">
-          <button id="auth-steam" style="margin-top: 20px;">Auth via Steam</button>
-        </a>
       </div>
     {% endif %}
   </div>
-
 
 <script>
   const tabs = document.querySelectorAll('nav button');
@@ -108,14 +100,16 @@
   const leaderboardBody = document.getElementById('leaderboard-body');
   const statsBody = document.querySelector('#stats-table tbody');
   const loadingIndicator = document.getElementById('loading');
-  const userRatingSpan = document.getElementById('user-rating');
 
   let offset = 0;
   let limit = 20;
   let loading = false;
 
+  // 🔄 ИЗМЕНЕНИЯ НАЧИНАЮТСЯ ЗДЕСЬ
+  let CURRENT_USER_ROW_ID = 'user-position-row';
+  let CURRENT_USER_STEAM_ID = null;
   {% if request.user.is_authenticated %}
-  const CURRENT_USER_STEAM_ID = "{{ request.user.steamid }}";
+    CURRENT_USER_STEAM_ID = "{{ request.user.steamid }}";
   {% endif %}
 
   function showNotification(message, duration = 3000) {
@@ -190,9 +184,7 @@
     }
   }
 
-  if (statsTab) {
-    statsTab.addEventListener('scroll', handleScroll);
-  }
+  if (statsTab) statsTab.addEventListener('scroll', handleScroll);
 
   if (refreshBtn) {
     refreshBtn.addEventListener('click', async () => {
@@ -213,7 +205,7 @@
 
         const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
         const data = await resp.json();
-        userRatingSpan.textContent = data.rating;
+        document.getElementById('user-rating').textContent = data.rating;
 
         await loadLeaderboard();
       } catch (e) {
@@ -225,60 +217,68 @@
     });
   }
 
-    let leaderboardOffset = 0;
-    let leaderboardLimit = 50;
-    let leaderboardFinished = false;
+  let leaderboardOffset = 0;
+  let leaderboardLimit = 50;
+  let leaderboardFinished = false;
 
-    async function loadLeaderboard() {
-      if (leaderboardFinished) return;
+  async function loadLeaderboard() {
+    if (leaderboardFinished) return;
 
-      const resp = await fetch(`/api/leaderboard?offset=${leaderboardOffset}&limit=${leaderboardLimit}`);
-      const players = await resp.json();
+    const resp = await fetch(`/api/leaderboard?offset=${leaderboardOffset}&limit=${leaderboardLimit}`);
+    const players = await resp.json();
 
-      if (players.length === 0) {
-        leaderboardFinished = true;
-        return;
+    if (players.length === 0) {
+      leaderboardFinished = true;
+      document.getElementById('load-more-leaderboard').style.display = 'none';
+      return;
+    }
+
+    let currentUserInBatch = false;
+
+    players.forEach((p, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${leaderboardOffset + i + 1}</td><td>${p.personaname}</td><td>${p.rating}</td>`;
+      if (CURRENT_USER_STEAM_ID && p.steamid === CURRENT_USER_STEAM_ID) {
+        tr.classList.add('highlight');
+        currentUserInBatch = true;
       }
+      leaderboardBody.appendChild(tr);
+    });
 
-      let currentUserInTop = false;
+    leaderboardOffset += players.length;
 
-      players.forEach((p, i) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${leaderboardOffset + i + 1}</td><td>${p.personaname}</td><td>${p.rating}</td>`;
-        if (p.steamid === CURRENT_USER_STEAM_ID) {
-          tr.classList.add('highlight');
-          currentUserInTop = true;
-        }
-        leaderboardBody.appendChild(tr);
-      });
+    // Удалить временные строки
+    const existingUserRow = document.getElementById(CURRENT_USER_ROW_ID);
+    if (existingUserRow) existingUserRow.remove();
+    const existingSeparator = document.getElementById(`${CURRENT_USER_ROW_ID}-separator`);
+    if (existingSeparator) existingSeparator.remove();
 
-      leaderboardOffset += players.length;
+    // ⛔ Добавлять строку текущего пользователя только если он авторизован
+    if (CURRENT_USER_STEAM_ID && !currentUserInBatch) {
+      try {
+        const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
+        const data = await resp.json();
 
-      if (!currentUserInTop && CURRENT_USER_STEAM_ID) {
         const separator = document.createElement('tr');
+        separator.id = `${CURRENT_USER_ROW_ID}-separator`;
         separator.innerHTML = `<td colspan="3" style="text-align:center; color:#777;">...</td>`;
         leaderboardBody.appendChild(separator);
 
-        try {
-          const resp = await fetch(`/api/player-position?steam_id=${CURRENT_USER_STEAM_ID}`);
-          const data = await resp.json();
-
-          const userRow = document.createElement('tr');
-          userRow.innerHTML = `<td>${data.position}</td><td>${data.nickname}</td><td>${data.rating}</td>`;
-          userRow.classList.add('highlight');
-          leaderboardBody.appendChild(userRow);
-        } catch (e) {
-          console.error("Error getting the player's position", e);
-        }
+        const userRow = document.createElement('tr');
+        userRow.id = CURRENT_USER_ROW_ID;
+        userRow.innerHTML = `<td>${data.position}</td><td>${data.nickname}</td><td>${data.rating}</td>`;
+        userRow.classList.add('highlight');
+        leaderboardBody.appendChild(userRow);
+      } catch (e) {
+        console.error("Error getting the player's position", e);
       }
     }
+  }
 
-  // Инициализация
   loadLeaderboard();
+  loadStats();
+
   document.getElementById('load-more-leaderboard').addEventListener('click', loadLeaderboard);
-  {% if request.user.is_authenticated %}
-    loadStats();
-  {% endif %}
 </script>
 
 </body>
