@@ -14,8 +14,7 @@ services:
 
   web:
     build: .
-    command: ["./wait-for-it.sh", "db:5432", "--",
-              "uwsgi", "--ini", 
+    command: ["uwsgi", "--ini",
               "/code/config/uwsgi/uwsgi.ini"]
     restart: always
     volumes:
@@ -30,9 +29,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    
+
     depends_on:
-      - db  
+      - db
 
   nginx:
     image: nginx:1.25.5
