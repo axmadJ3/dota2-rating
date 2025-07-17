@@ -80,10 +80,10 @@
             <th>Time</th>
             <th>Duration</th>
             <th>Hero</th>
-            <th>Result</th>
-            <th>K</th>
-            <th>D</th>
-            <th>A</th>
+            <th title="Win +20, Lose -20">Result</th>
+            <th title="Kill +4">K</th>
+            <th title="Death -4">D</th>
+            <th title="Assist +1">A</th>
             <th>Rating</th>
           </tr>
         </thead>
@@ -160,7 +160,12 @@
         row.innerHTML = `
           <td>${new Date(game.time).toLocaleString()}</td>
           <td>${formatDuration(game.duration)}</td>
-          <td>${game.hero}</td>
+          <td>
+            <img src="https://cdn.steamstatic.com/apps/dota2/images/dota_react/heroes/${game.hero}.png" 
+                alt="${game.hero}" 
+                title="${game.hero}" 
+                style="height: 40px; vertical-align: middle;">
+          </td>
           <td>${game.result}</td>
           <td>${game.kills}</td>
           <td>${game.deaths}</td>
