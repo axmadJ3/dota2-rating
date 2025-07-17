@@ -11,7 +11,7 @@ ADMINS = [
 ]
 
 
-ALLOWED_HOSTS = ['13.62.23.9']
+ALLOWED_HOSTS = ['13.62.23.9', 'turbodota.xyz', '109.120.185.211']
 
 
 DATABASES = {
@@ -24,3 +24,7 @@ DATABASES = {
         'PORT': 5432,
     }
 }
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
