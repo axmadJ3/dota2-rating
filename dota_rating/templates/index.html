@@ -148,6 +148,13 @@
     return `${min}:${sec.toString().padStart(2, '0')}`;
   }
 
+  function formatHeroName(internalName) {
+    return internalName
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
   async function loadStats() {
     if (loading) return;
     loading = true;
@@ -165,6 +172,7 @@
                 alt="${game.hero}" 
                 title="${game.hero}" 
                 style="height: 40px; vertical-align: middle;">
+            ${formatHeroName(game.hero)}
           </td>
           <td>${game.result}</td>
           <td>${game.kills}</td>
