@@ -1,11 +1,26 @@
-# upstream for uWSGI
 upstream uwsgi_app {
     server unix:/code/dota_rating/uwsgi_app.sock;
 }
 
 server {
     listen 80;
-    server_name 13.62.23.9;
+    server_name turbodota.xyz www.turbodota.xyz;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    server_name turbodota.xyz www.turbodota.xyz;
+
+    ssl_certificate /etc/letsencrypt/live/turbodota.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/turbodota.xyz/privkey.pem;
 
     location /static/ {
         alias /code/dota_rating/staticfiles/;
